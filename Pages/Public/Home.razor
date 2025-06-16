@@ -1,0 +1,34 @@
+﻿@page "/"
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+
+<MudPaper Class="pa-6 mx-auto" MaxWidth="600px" Elevation="4">
+    <MudText Typo="Typo.h4" GutterBottom="true">
+        Welcome to PubQuiz
+    </MudText>
+    @if (IsAuthenticated)
+    {
+        <MudText>Hello @Name</MudText>
+    }
+    <MudText>
+        This is a shared page for all users.
+    </MudText>
+</MudPaper>
+
+@code{
+    private bool IsAuthenticated;
+    private string Name;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        IsAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+
+        if (IsAuthenticated)
+        {
+            Name = authState.User.Identity.Name;
+        }
+    }
+}
