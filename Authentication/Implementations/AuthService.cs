@@ -25,9 +25,9 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
             public async Task<bool> LoginAsync(LoginUserDto loginDto)
             {
                 var request = new HttpRequestMessage(HttpMethod.Post, "auth/login");
-                request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
                 request.Headers.Add("AppName", "Attendee");
                 request.Content = JsonContent.Create(loginDto);
+                request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
 
                 var response = await _httpClient.SendAsync(request);
 
@@ -43,23 +43,32 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
 
                 if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
                 {
-                    customAuthProvider.NotifyUserAuthentication(result.AccessToken);
+                    await customAuthProvider.NotifyUserAuthentication(result.AccessToken);
                 }
 
                 return true;
             }
 
 
-            public Task LogoutAsync()
+            public async Task<bool> LogoutAsync()
             {
-                _tokenStorage.SetAccessToken(null);
+                var request = new HttpRequestMessage(HttpMethod.Post, "auth/logout");
+                request.Headers.Add("AppName", "Attendee");
+                request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
 
-                if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+                var response = await _httpClient.SendAsync(request);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    customAuthProvider.NotifyUserLogout();
+                    _tokenStorage.SetAccessToken(null);
+
+                    if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+                        await customAuthProvider.NotifyUserLogout();
+
+                    return true;
                 }
 
-                return Task.CompletedTask;
+                return false;
             }
 
             public async Task<bool> TryRefreshTokenAsync()
@@ -94,7 +103,6 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
                 try
                 {
                     var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register");
-                    request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
                     request.Headers.Add("AppName", "Attendee");
                     request.Content = JsonContent.Create(registerDto);
 

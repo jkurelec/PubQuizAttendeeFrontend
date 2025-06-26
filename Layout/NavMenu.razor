@@ -1,4 +1,4 @@
-﻿@inject AuthenticationStateProvider AuthenticationStateProvider
+﻿@inject UserInfoService UserInfoService
 @inject NavigationManager Navigation
 @inject IAuthService AuthService
 
@@ -7,13 +7,18 @@
         <MudText Typo="Typo.h6" Class="pa-4">PubQuiz</MudText>
 
         <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-        <MudNavLink Href="counter" Icon="@Icons.Material.Filled.AddBox">Counter</MudNavLink>
-        <MudNavLink Href="weather" Icon="@Icons.Material.Filled.Cloud">Weather</MudNavLink>
 
         @if (IsAuthenticated)
         {
             <MudNavLink Href="profile" Icon="@Icons.Material.Filled.Person">Profile</MudNavLink>
-            <MudNavLink Href="" Icon="@Icons.Material.Filled.Logout" OnClick="@Logout">Logout</MudNavLink>
+            <MudNavLink Href="userTeams" Icon="@Icons.Material.Filled.People">Teams</MudNavLink>
+            <MudButton StartIcon="@Icons.Material.Filled.Logout"
+                       Color="Color.Inherit"
+                       Variant="Variant.Text"
+                       OnClick="@Logout"
+                       Class="mud-nav-link px-4">
+                Logout
+            </MudButton>
         }
         else
         {
@@ -27,17 +32,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        IsAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+        var user = await UserInfoService.GetUserInfoAsync();
+        IsAuthenticated = user != null;
 
-        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        UserInfoService.UserInfoChanged += OnUserInfoChanged;
     }
 
-    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    private void OnUserInfoChanged(UserInfo? userInfo)
     {
-        var authState = await task;
-        IsAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
-        StateHasChanged();
+        IsAuthenticated = userInfo != null;
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task Logout()
@@ -48,6 +52,6 @@
 
     public void Dispose()
     {
-        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        UserInfoService.UserInfoChanged -= OnUserInfoChanged;
     }
 }

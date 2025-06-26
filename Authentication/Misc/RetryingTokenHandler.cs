@@ -4,28 +4,25 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components.WebAssembly.Http;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace PubQuizAttendeeFrontend.Authentication.Misc
 {
     public class RetryingTokenHandler : DelegatingHandler
     {
         private readonly ITokenStorageService _tokenStorage;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly HttpClient _httpClient;
+        private readonly AuthenticationStateProvider _authStateProvider;
 
-        public RetryingTokenHandler(ITokenStorageService tokenStorage, IHttpClientFactory httpClientFactory)
+        public RetryingTokenHandler(ITokenStorageService tokenStorage, IHttpClientFactory httpClientFactory, AuthenticationStateProvider authStateProvider)
         {
             _tokenStorage = tokenStorage;
-            _httpClientFactory = httpClientFactory;
+            _httpClient = httpClientFactory.CreateClient("RefreshClient");
+            _authStateProvider = authStateProvider;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            // Skip retry logic if this is the refresh endpoint itself
-            if (request.RequestUri?.AbsolutePath == "/auth/refresh")
-            {
-                return await base.SendAsync(request, cancellationToken);
-            }
-
             var token = _tokenStorage.GetAccessToken();
 
             if (!string.IsNullOrWhiteSpace(token))
@@ -33,22 +30,15 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
 
-            if (!request.Headers.Contains("AppName"))
-            {
-                request.Headers.Add("AppName", "Attendee");
-            }
-
             var response = await base.SendAsync(request, cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                // Build refresh request
                 var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "auth/refresh");
                 refreshRequest.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
                 refreshRequest.Headers.Add("AppName", "Attendee");
 
-                var refreshClient = _httpClientFactory.CreateClient("RefreshClient");
-                var refreshResponse = await refreshClient.SendAsync(refreshRequest, cancellationToken);
+                var refreshResponse = await _httpClient.SendAsync(refreshRequest, cancellationToken);
 
                 if (refreshResponse.IsSuccessStatusCode)
                 {
@@ -58,15 +48,20 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
                     {
                         _tokenStorage.SetAccessToken(result.AccessToken);
 
-                        // Clone original request
+                        if (_authStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+                            await customAuthProvider.NotifyUserAuthentication(result.AccessToken);
+
                         var cloned = await CloneHttpRequestMessageAsync(request);
                         cloned.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
 
-                        // Use a top-level client to retry, NOT base.SendAsync to avoid infinite handler recursion
-                        var retryClient = _httpClientFactory.CreateClient("ApiClient");
-                        return await retryClient.SendAsync(cloned, cancellationToken);
+                        return await base.SendAsync(cloned, cancellationToken);
                     }
                 }
+
+                _tokenStorage.ClearAccessToken();
+
+                if (_authStateProvider is CustomAuthenticationStateProvider customAuthProviderr)
+                    await customAuthProviderr.NotifyUserLogout();
             }
 
             return response;

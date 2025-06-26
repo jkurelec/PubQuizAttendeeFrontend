@@ -1,30 +1,37 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Http;
 using PubQuizAttendeeFrontend.Authentication.Interfaces;
 using PubQuizAttendeeFrontend.Models.Auth;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace PubQuizAttendeeFrontend.Authentication.Misc
 {
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
         private readonly ITokenStorageService _tokenStorage;
-        private readonly HttpClient _httpClient;
+        private readonly UserInfoService _userInfoService;
 
-        public CustomAuthenticationStateProvider(ITokenStorageService tokenStorage, HttpClient httpClient)
+        public CustomAuthenticationStateProvider(ITokenStorageService tokenStorage, UserInfoService userInfoService)
         {
             _tokenStorage = tokenStorage;
-            _httpClient = httpClient;
+            _userInfoService = userInfoService;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+            var userInfo = await _userInfoService.GetUserInfoAsync();
+
+            if (userInfo == null)
+                return new AuthenticationState(new ClaimsPrincipal());
+
             var token = _tokenStorage.GetAccessToken();
 
             if (string.IsNullOrWhiteSpace(token))
             {
                 var tokenSet = await TryRefreshTokenAsync();
+
                 if (tokenSet)
                     token = _tokenStorage.GetAccessToken();
             }
@@ -36,18 +43,32 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }
 
-        public void NotifyUserAuthentication(string token)
+        public async Task NotifyUserAuthentication(string token)
         {
             var claims = JwtParser.ParseClaimsFromJwt(token);
             var identity = new ClaimsIdentity(claims, "jwt");
             var user = new ClaimsPrincipal(identity);
 
+            if (!int.TryParse(user.FindFirst("sub")?.Value, out int id))
+                throw new InvalidOperationException("User ID claim is missing or invalid.");
+
+            await _userInfoService.SetUserInfoAsync(
+                new()
+                {
+                    Id = id,
+                    Username = user.FindFirst(c => c.Type == ClaimTypes.Name)?.Value
+                }
+            );
+
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
         }
 
-        public void NotifyUserLogout()
+        public async Task NotifyUserLogout()
         {
             var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+
+            await _userInfoService.ClearUserInfoAsync();
+
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
         }
 
@@ -55,7 +76,16 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
         {
             try
             {
-                var response = await _httpClient.PostAsync("auth/refresh", null);
+                var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "auth/refresh");
+                refreshRequest.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+                refreshRequest.Headers.Add("AppName", "Attendee");
+
+                var httpClient = new HttpClient
+                {
+                    BaseAddress = new Uri("https://localhost:7062/"),
+                };
+
+                var response = await httpClient.SendAsync(refreshRequest);
 
                 if (!response.IsSuccessStatusCode)
                     return false;
@@ -66,6 +96,7 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
                     return false;
 
                 _tokenStorage.SetAccessToken(result.AccessToken);
+
                 return true;
             }
             catch
