@@ -93,20 +93,5 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
                 return jObject.ToObject<QuizEditionDetailedDto>()!;
             }
         }
-
-        public async Task<IEnumerable<AcceptedQuizEditionApplicationDto>> GetAcceptedApplications(int editionId)
-        {
-            var response = await _httpClient.GetAsync($"accepted/{editionId}");
-
-            if (response.IsSuccessStatusCode)
-            {
-                var json = await response.Content.ReadAsStringAsync();
-                var applications = JsonConvert.DeserializeObject<List<AcceptedQuizEditionApplicationDto>>(json);
-
-                return applications ?? new List<AcceptedQuizEditionApplicationDto>();
-            }
-
-            return new List<AcceptedQuizEditionApplicationDto>();
-        }
     }
 }

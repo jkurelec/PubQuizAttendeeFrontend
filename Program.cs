@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using PubQuizAttendeeFrontend;
 using PubQuizAttendeeFrontend.Authentication.Implementations;
-using PubQuizAttendeeFrontend.Authentication.Implementations.PubQuizAttendeeFrontend.Authentication.Implementations;
 using PubQuizAttendeeFrontend.Authentication.Interfaces;
 using PubQuizAttendeeFrontend.Authentication.Misc;
 using PubQuizAttendeeFrontend.Services.Implementations;
@@ -24,6 +23,7 @@ builder.Services.AddScoped<UserInfoService>();
 
 builder.Services.AddScoped<IQuizEditionService, QuizEditionService>();
 builder.Services.AddScoped<IQuizEditionApplicationService, QuizEditionApplicationService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 
 
 builder.Services.AddTransient<RetryingTokenHandler>();
@@ -42,5 +42,14 @@ builder.Services.AddHttpClient("RefreshClient", client =>
 .ConfigureHttpClient(c => c.DefaultRequestHeaders.Add("AppName", "Attendee"));
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient"));
+
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.TopRight;
+    config.SnackbarConfiguration.PreventDuplicates = false;
+    config.SnackbarConfiguration.NewestOnTop = true;
+    config.SnackbarConfiguration.ShowCloseIcon = true;
+    config.SnackbarConfiguration.VisibleStateDuration = 4000;
+});
 
 await builder.Build().RunAsync();

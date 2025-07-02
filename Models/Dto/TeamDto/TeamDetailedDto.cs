@@ -4,13 +4,18 @@ using PubQuizAttendeeFrontend.Models.Dto.UserDto;
 
 namespace PubQuizAttendeeFrontend.Models.Dto.TeamDto
 {
-    public class TeamDetailedDto
+    public partial class TeamDetailedDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = null!;
-        public int OwnerId;
+        public int OwnerId { get; set; }
         public QCategoryDto Category { get; set; } = null!;
         public QuizMinimalDto Quiz { get; set; } = null!;
-        public IEnumerable<UserBriefDto> TeamMembers { get; set; } = new List<UserBriefDto>();
+        public IEnumerable<UserTeamDto> TeamMembers { get; set; } = new List<UserTeamDto>();
+    }
+
+    public partial class TeamDetailedDto
+    {
+        public string? NewName { get; set; }
     }
 }

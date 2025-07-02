@@ -1,5 +1,8 @@
-﻿@inherits LayoutComponentBase
+﻿@using PubQuizAttendeeFrontend.Utils
+@inherits LayoutComponentBase
 @inject NavigationManager Navigation
+
+<MudThemeProvider Theme="@CustomThemes.PubQuizTheme" />
 
 <MudLayout>
     <MudDrawer Open="true" ClipMode="DrawerClipMode.Never" Variant="DrawerVariant.Mini" Elevation="1" Class="mud-width-260">

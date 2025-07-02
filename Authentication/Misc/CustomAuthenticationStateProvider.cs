@@ -4,7 +4,6 @@ using PubQuizAttendeeFrontend.Authentication.Interfaces;
 using PubQuizAttendeeFrontend.Models.Auth;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace PubQuizAttendeeFrontend.Authentication.Misc
 {
@@ -52,11 +51,15 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
             if (!int.TryParse(user.FindFirst("sub")?.Value, out int id))
                 throw new InvalidOperationException("User ID claim is missing or invalid.");
 
+            var teamIdClaim = user.FindFirst("teamId")?.Value;
+            int? teamId = int.TryParse(teamIdClaim, out var tid) ? tid : null;
+
             await _userInfoService.SetUserInfoAsync(
                 new()
                 {
                     Id = id,
-                    Username = user.FindFirst(c => c.Type == ClaimTypes.Name)?.Value
+                    Username = user.FindFirst(c => c.Type == ClaimTypes.Name)?.Value,
+                    TeamId = teamId
                 }
             );
 

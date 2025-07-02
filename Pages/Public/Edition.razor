@@ -4,8 +4,10 @@
 @inject IQuizEditionService QuizEditionService
 @inject IQuizEditionApplicationService QuizEditionApplicationService
 @inject NavigationManager Navigation
+@inject ITeamService TeamService
+@inject IDialogService DialogService
 
-<PageTitle>Edition Details</PageTitle>
+<PageTitle>@editionDto?.Name</PageTitle>
 
 @if (editionDto == null)
 {
@@ -148,8 +150,17 @@ else
                 {
                     <MudDivider Class="my-2" />
 
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Apply" Class="mt-4" Size="Size.Medium">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ShowRegisterDialog" Class="mt-4" Size="Size.Medium">
                         Apply
+                    </MudButton>
+                }
+
+                @if (canWithdraw)
+                {
+                    <MudDivider Class="my-2" />
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmWithdraw" Class="mt-4" Size="Size.Medium">
+                        Withdraw
                     </MudButton>
                 }
 
@@ -168,14 +179,23 @@ else
 
     private QuizEditionDetailedDto? editionDto;
     private bool canApply = false;
+    private bool canWithdraw = false;
     private bool showTeams = false;
     private List<AcceptedQuizEditionApplicationDto> acceptedTeams = new();
+    private UserInfo? userInfo;
 
     protected override async Task OnInitializedAsync()
     {
         editionDto = await QuizEditionService.GetById(Id);
+        userInfo = await UserInfoService.GetUserInfoAsync();
 
-        await CheckIfUserCanApply(editionDto);
+        if (userInfo != null)
+        {
+            await CheckIfUserCanApply(editionDto);
+
+            if (!canApply)
+                await CheckIfUserCanWithdraw(editionDto);
+        }
     }
 
     private async Task CheckIfUserCanApply(QuizEditionDetailedDto? editionDto)
@@ -190,6 +210,21 @@ else
             {
                 var applied = await QuizEditionApplicationService.CheckIfUserApplied(editionDto.Id);
                 canApply = !applied;
+            }
+        }
+    }
+
+    private async Task CheckIfUserCanWithdraw(QuizEditionDetailedDto? editionDto)
+    {
+        if (editionDto != null)
+        {
+            var now = DateTime.UtcNow;
+
+            bool inRegistrationPeriod = now <= editionDto.RegistrationEnd;
+
+            if (inRegistrationPeriod && userInfo?.TeamId != null)
+            {
+                canWithdraw = await QuizEditionApplicationService.CanUserWithdraw((int)userInfo?.TeamId!, editionDto.Id);
             }
         }
     }
@@ -215,13 +250,46 @@ else
         return ((double)editionDto.AcceptedTeams / editionDto.MaxTeams) * 100;
     }
 
-    private async Task Apply()
+    private async Task ShowRegisterDialog()
     {
-        var userInfo = await UserInfoService.GetUserInfoAsync();
-
         if (userInfo == null)
-            Navigation.NavigateTo("/login");
+            Navigation.NavigateTo("/login", forceLoad: true);
 
-        canApply = false;
+        var parameters = new DialogParameters
+        {
+            { "EditionId", Id },
+            { "MaxTeamSize", editionDto?.MaxTeamSize}
+        };
+
+        var options = new DialogOptions
+            {
+                CloseButton = true,
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            };
+
+        var dialog = await DialogService.ShowAsync<TeamListDialog>("Select a Team to Register", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await OnInitializedAsync();
+        }
+    }
+
+    private async Task ConfirmWithdraw()
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            title: "Confirm Withdrawal",
+            markupMessage: (MarkupString)"Are you sure you want to withdraw?",
+            yesText: "Withdraw",
+            cancelText: "Cancel"
+        );
+
+        if (confirmed == true)
+        {
+            await QuizEditionApplicationService.WithdrawFromEdition((int)userInfo?.TeamId!, Id);
+            await OnInitializedAsync();
+        }
     }
 }

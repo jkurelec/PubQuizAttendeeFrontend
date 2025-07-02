@@ -35,7 +35,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
             if (user == null)
                 return false;
 
-            var url = $"{BasePath}check/{editionId}";
+            var url = $"{BasePath}check/applied/{editionId}";
 
             using var response = await _httpClient.GetAsync(url);
 
@@ -48,6 +48,44 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
                 return result;
 
             return false;
+        }
+
+        public async Task<bool> CanUserWithdraw(int teamId, int editionId)
+        {
+            var user = await _userInfoService.GetUserInfoAsync();
+
+            if (user == null)
+                return false;
+
+            var url = $"{BasePath}check/withdraw/{teamId}/{editionId}";
+
+            using var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (bool.TryParse(content, out bool result))
+                return result;
+
+            return false;
+        }
+
+        public async Task ApplyForEdition(QuizEditionApplicationRequestDto applicationRequestDto)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"{BasePath}apply", applicationRequestDto);
+
+            if (!response.IsSuccessStatusCode)
+                Console.Write(response.ToString());
+        }
+
+        public async Task WithdrawFromEdition(int teamId, int editionId)
+        {
+            var response = await _httpClient.DeleteAsync($"{BasePath}withdraw/{teamId}/{editionId}");
+
+            if (!response.IsSuccessStatusCode)
+                Console.Write(response.ToString());
         }
     }
 }

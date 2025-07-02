@@ -7,27 +7,75 @@ using System.Net.Http.Json;
 
 namespace PubQuizAttendeeFrontend.Authentication.Implementations
 {
-    namespace PubQuizAttendeeFrontend.Authentication.Implementations
+    public class AuthService : IAuthService
     {
-        public class AuthService : IAuthService
-        {
-            private readonly HttpClient _httpClient;
-            private readonly ITokenStorageService _tokenStorage;
-            private readonly AuthenticationStateProvider _authenticationStateProvider;
+        private readonly HttpClient _httpClient;
+        private readonly ITokenStorageService _tokenStorage;
+        private readonly AuthenticationStateProvider _authenticationStateProvider;
 
-            public AuthService(HttpClient httpClient, ITokenStorageService tokenStorage, AuthenticationStateProvider authenticationStateProvider)
+        public AuthService(HttpClient httpClient, ITokenStorageService tokenStorage, AuthenticationStateProvider authenticationStateProvider)
+        {
+            _httpClient = httpClient;
+            _tokenStorage = tokenStorage;
+            _authenticationStateProvider = authenticationStateProvider;
+        }
+
+        public async Task<bool> LoginAsync(LoginUserDto loginDto)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "auth/login");
+            request.Headers.Add("AppName", "Attendee");
+            request.Content = JsonContent.Create(loginDto);
+            request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            var result = await response.Content.ReadFromJsonAsync<AccessTokenResponse>();
+
+            if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
+                return false;
+
+            _tokenStorage.SetAccessToken(result.AccessToken);
+
+            if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
             {
-                _httpClient = httpClient;
-                _tokenStorage = tokenStorage;
-                _authenticationStateProvider = authenticationStateProvider;
+                await customAuthProvider.NotifyUserAuthentication(result.AccessToken);
             }
 
-            public async Task<bool> LoginAsync(LoginUserDto loginDto)
+            return true;
+        }
+
+
+        public async Task<bool> LogoutAsync()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "auth/logout");
+            request.Headers.Add("AppName", "Attendee");
+            request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.IsSuccessStatusCode)
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "auth/login");
-                request.Headers.Add("AppName", "Attendee");
-                request.Content = JsonContent.Create(loginDto);
+                _tokenStorage.SetAccessToken(null);
+
+                if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+                    await customAuthProvider.NotifyUserLogout();
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> TryRefreshTokenAsync()
+        {
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, "auth/refresh");
                 request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+                request.Headers.Add("AppName", "Attendee");
 
                 var response = await _httpClient.SendAsync(request);
 
@@ -40,88 +88,37 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
                     return false;
 
                 _tokenStorage.SetAccessToken(result.AccessToken);
-
-                if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
-                {
-                    await customAuthProvider.NotifyUserAuthentication(result.AccessToken);
-                }
-
                 return true;
             }
-
-
-            public async Task<bool> LogoutAsync()
+            catch
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "auth/logout");
+                return false;
+            }
+        }
+
+        public async Task<bool> RegisterAsync(RegisterUserDto registerDto)
+        {
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register");
                 request.Headers.Add("AppName", "Attendee");
-                request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+                request.Content = JsonContent.Create(registerDto);
 
                 var response = await _httpClient.SendAsync(request);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _tokenStorage.SetAccessToken(null);
-
-                    if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
-                        await customAuthProvider.NotifyUserLogout();
-
                     return true;
                 }
-
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
                 return false;
-            }
-
-            public async Task<bool> TryRefreshTokenAsync()
-            {
-                try
-                {
-                    var request = new HttpRequestMessage(HttpMethod.Post, "auth/refresh");
-                    request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
-                    request.Headers.Add("AppName", "Attendee");
-
-                    var response = await _httpClient.SendAsync(request);
-
-                    if (!response.IsSuccessStatusCode)
-                        return false;
-
-                    var result = await response.Content.ReadFromJsonAsync<AccessTokenResponse>();
-
-                    if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
-                        return false;
-
-                    _tokenStorage.SetAccessToken(result.AccessToken);
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-
-            public async Task<bool> RegisterAsync(RegisterUserDto registerDto)
-            {
-                try
-                {
-                    var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register");
-                    request.Headers.Add("AppName", "Attendee");
-                    request.Content = JsonContent.Create(registerDto);
-
-                    var response = await _httpClient.SendAsync(request);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        return false;
-                    }
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
             }
         }
     }
