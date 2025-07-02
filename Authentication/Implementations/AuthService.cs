@@ -100,7 +100,7 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
         {
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register");
+                var request = new HttpRequestMessage(HttpMethod.Post, "auth/register");
                 request.Headers.Add("AppName", "Attendee");
                 request.Content = JsonContent.Create(registerDto);
 

@@ -3,44 +3,103 @@
 @inject NavigationManager Navigation
 @inject IAuthService AuthService
 
-<MudPaper Class="pa-6 mx-auto mt-12" Style="max-width:400px">
+<MudPaper Class="pa-6 mx-auto mt-12" Style="max-width:420px;">
     <MudText Typo="Typo.h5" Class="mb-4">Register</MudText>
 
     <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
-        <MudTextField @bind-Value="registerModel.Username" Label="Username" Required="true" For="@(() => registerModel.Username)" />
-        <MudTextField @bind-Value="registerModel.Password" Label="Password" Required="true" InputType="InputType.Password" For="@(() => registerModel.Password)" />
-        <MudTextField @bind-Value="registerModel.Firstname" Label="First Name" Required="true" For="@(() => registerModel.Firstname)" />
-        <MudTextField @bind-Value="registerModel.Lastname" Label="Last Name" Required="true" For="@(() => registerModel.Lastname)" />
-        <MudTextField @bind-Value="registerModel.Email" Label="Email" Required="true" For="@(() => registerModel.Email)" />
+        <MudTextField @bind-Value="registerModel.Username"
+                      Label="Username"
+                      Required="true"
+                      For="@(() => registerModel.Username)"
+                      Class="mb-4"
+                      Immediate="true" />
+
+        <MudTextField @bind-Value="registerModel.Password"
+                      Label="Password"
+                      Required="true"
+                      For="@(() => registerModel.Password)"
+                      InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                      Class="mb-4"
+                      Immediate="true"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                      OnAdornmentClick="@TogglePasswordVisibility" />
+
+        <MudTextField @bind-Value="registerModel.Firstname"
+                      Label="First Name"
+                      Required="true"
+                      For="@(() => registerModel.Firstname)"
+                      Class="mb-4"
+                      Immediate="true" />
+
+        <MudTextField @bind-Value="registerModel.Lastname"
+                      Label="Last Name"
+                      Required="true"
+                      For="@(() => registerModel.Lastname)"
+                      Class="mb-4"
+                      Immediate="true" />
+
+        <MudTextField @bind-Value="registerModel.Email"
+                      Label="Email"
+                      Required="true"
+                      For="@(() => registerModel.Email)"
+                      Class="mb-4"
+                      Immediate="true" />
 
         @if (!string.IsNullOrEmpty(error))
         {
-            <MudText Color="Color.Error">@error</MudText>
+            <MudText Color="Color.Error" Class="mb-4">@error</MudText>
         }
 
-        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" FullWidth="true">Register</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-2 mb-4" Disabled="@isSubmitting">
+            @(isSubmitting ? "Registering..." : "Register")
+        </MudButton>
     </EditForm>
+
+    <MudText Typo="Typo.body2" Align="Align.Center">
+        Already have an account?
+        <MudLink Href="/login" Class="ml-1">Log in here</MudLink>
+    </MudText>
 </MudPaper>
 
 @code {
     private RegisterUserDto registerModel = new();
     private string? error;
+    private bool isSubmitting;
+    private bool _showPassword;
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
 
     private async Task HandleRegister()
     {
         error = null;
+        isSubmitting = true;
 
-        bool success = await AuthService.RegisterAsync(registerModel);
-        if (success)
+        try
         {
-            Navigation.NavigateTo("/login");
+            bool success = await AuthService.RegisterAsync(registerModel);
+            if (success)
+            {
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                error = "Registration failed. Please check your inputs and try again.";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            error = "Registration failed. Please check your inputs and try again.";
+            error = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
         }
     }
 }
