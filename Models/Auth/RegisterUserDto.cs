@@ -6,7 +6,7 @@ namespace PubQuizAttendeeFrontend.Models.Auth
     {
         [Required]
         [StringLength(15, ErrorMessage = "Username mora biti izmedu 4-15 znakova", MinimumLength = 4)]
-        [RegularExpression(@"^[a-zA-Z]+$", ErrorMessage = "Username može sadržavati samo slova.")]
+        [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Username može sadržavati samo slova i brojeve.")]
         public string Username { get; set; } = null!;
 
         [Required]

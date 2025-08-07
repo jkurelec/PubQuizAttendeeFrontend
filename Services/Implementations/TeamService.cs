@@ -2,6 +2,7 @@
 using PubQuizAttendeeFrontend.Authentication.Misc;
 using PubQuizAttendeeFrontend.Models.Dto.ApplicationDto;
 using PubQuizAttendeeFrontend.Models.Dto.TeamDto;
+using PubQuizAttendeeFrontend.Pages.Public;
 using PubQuizAttendeeFrontend.Services.Interfaces;
 using System.Net.Http.Json;
 
@@ -21,7 +22,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
 
         public async Task<IEnumerable<TeamDetailedDto>> GetUserTeams()
         {
-            var userInfo = await _userInfoService.GetUserInfoAsync();
+            var userInfo = await _userInfoService.GetUserInfo();
 
             if (userInfo == null)
                 return new List<TeamDetailedDto>();
@@ -192,6 +193,19 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
             }
 
             return new List<TeamRegisterDto>();
+        }
+
+        public async Task<bool> CanInviteUser(int invitee)
+        {
+            var response = await _httpClient.GetAsync($"{BasePath}can-invite/{invitee}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<bool>(json);
+            }
+
+            return false;
         }
     }
 }

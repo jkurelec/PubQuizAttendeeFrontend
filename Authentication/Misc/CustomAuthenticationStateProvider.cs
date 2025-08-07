@@ -20,7 +20,7 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var userInfo = await _userInfoService.GetUserInfoAsync();
+            var userInfo = await _userInfoService.GetUserInfo();
 
             if (userInfo == null)
                 return new AuthenticationState(new ClaimsPrincipal());

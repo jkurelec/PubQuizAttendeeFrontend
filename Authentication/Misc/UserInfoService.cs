@@ -16,7 +16,7 @@ namespace PubQuizAttendeeFrontend.Authentication.Misc
             _js = js;
         }
 
-        public async Task<UserInfo?> GetUserInfoAsync()
+        public async Task<UserInfo?> GetUserInfo()
         {
             if (_userInfoCache != null)
                 return _userInfoCache;

@@ -30,7 +30,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
 
         public async Task<bool> CheckIfUserApplied(int editionId)
         {
-            var user = await _userInfoService.GetUserInfoAsync();
+            var user = await _userInfoService.GetUserInfo();
 
             if (user == null)
                 return false;
@@ -52,7 +52,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
 
         public async Task<bool> CanUserWithdraw(int teamId, int editionId)
         {
-            var user = await _userInfoService.GetUserInfoAsync();
+            var user = await _userInfoService.GetUserInfo();
 
             if (user == null)
                 return false;
@@ -80,9 +80,9 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
                 Console.Write(response.ToString());
         }
 
-        public async Task WithdrawFromEdition(int teamId, int editionId)
+        public async Task WithdrawFromEdition(int editionId)
         {
-            var response = await _httpClient.DeleteAsync($"{BasePath}withdraw/{teamId}/{editionId}");
+            var response = await _httpClient.DeleteAsync($"{BasePath}withdraw/{editionId}");
 
             if (!response.IsSuccessStatusCode)
                 Console.Write(response.ToString());

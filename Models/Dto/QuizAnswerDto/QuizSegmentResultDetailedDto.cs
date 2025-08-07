@@ -1,4 +1,6 @@
-﻿namespace PubQuizAttendeeFrontend.Models.Dto.QuizAnswerDto
+﻿using PubQuizAttendeeFrontend.Models.Dto.QuizAnswerDto;
+
+namespace PubQuizAttendeeFrontend.Models.Dto.QuizAnswerDto
 {
     public class QuizSegmentResultDetailedDto : NewQuizSegmentResultDto
     {

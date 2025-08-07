@@ -22,8 +22,7 @@ else
                 <MudText Typo="Typo.body1">@editionDto.Category?.Name</MudText>
                 <MudText Typo="Typo.body1">Rating: @editionDto.Rating</MudText>
                 <MudText Typo="Typo.body1">@editionDto.Time.ToString("f", CultureInfo.GetCultureInfo("hr-HR"))</MudText>
-                <MudText Typo="Typo.body2"
-                Style="cursor: pointer; text-decoration: underline;"
+                <MudText Typo="Typo.body2" Style="cursor: pointer; text-decoration: underline;"
                 @onclick="@(() => Navigation.NavigateTo($"/edition/{Id}#map-section", forceLoad: true))">
                     @editionDto.Location?.Name, @editionDto.Location?.Address,
                     @editionDto.Location?.City, @editionDto.Location?.Country
@@ -187,7 +186,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         editionDto = await QuizEditionService.GetById(Id);
-        userInfo = await UserInfoService.GetUserInfoAsync();
+        userInfo = await UserInfoService.GetUserInfo();
 
         if (userInfo != null)
         {
@@ -271,7 +270,7 @@ else
         var dialog = await DialogService.ShowAsync<TeamListDialog>("Select a Team to Register", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result?.Canceled == false)
         {
             await OnInitializedAsync();
         }
@@ -288,8 +287,11 @@ else
 
         if (confirmed == true)
         {
-            await QuizEditionApplicationService.WithdrawFromEdition((int)userInfo?.TeamId!, Id);
-            await OnInitializedAsync();
+            await QuizEditionApplicationService.WithdrawFromEdition(Id);
+            await CheckIfUserCanWithdraw(editionDto);
+
+            await Task.Delay(10);
+            StateHasChanged();
         }
     }
 }

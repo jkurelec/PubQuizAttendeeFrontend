@@ -5,6 +5,7 @@ using PubQuizAttendeeFrontend.Models.Dto.ApplicationDto;
 using PubQuizAttendeeFrontend.Models.Dto.QuizEditionDto;
 using PubQuizAttendeeFrontend.Services.Interfaces;
 using System.Net.Http.Json;
+using static System.Net.WebRequestMethods;
 
 namespace PubQuizAttendeeFrontend.Services.Implementations
 {
@@ -74,7 +75,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
 
         public async Task<QuizEditionDetailedDto> GetById(int id)
         {
-            var response = await _httpClient.GetAsync($"edition/{id}");
+            var response = await _httpClient.GetAsync($"{BasePath}{id}");
             if (!response.IsSuccessStatusCode)
                 throw new Exception("Failed to fetch edition.");
 
@@ -92,6 +93,14 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
             {
                 return jObject.ToObject<QuizEditionDetailedDto>()!;
             }
+        }
+
+        public async Task<bool?> HasDetailedQuestions(int editionId)
+        {
+            var response = await _httpClient.GetAsync($"{BasePath}{editionId}");
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<bool>()
+                : null;
         }
     }
 }

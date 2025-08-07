@@ -8,6 +8,6 @@ namespace PubQuizAttendeeFrontend.Services.Interfaces
         Task<bool> CheckIfUserApplied(int editionId);
         Task ApplyForEdition(QuizEditionApplicationRequestDto applicationRequestDto);
         Task<bool> CanUserWithdraw(int teamId, int editionId);
-        Task WithdrawFromEdition(int teamId, int editionId);
+        Task WithdrawFromEdition(int editionId);
     }
 }

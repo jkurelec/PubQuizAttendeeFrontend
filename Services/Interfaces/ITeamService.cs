@@ -23,5 +23,6 @@ namespace PubQuizAttendeeFrontend.Services.Interfaces
         Task<TeamDetailedDto?> CreateTeam(string name);
         Task LeaveTeam(int teamId);
         Task<IEnumerable<TeamRegisterDto>> GetTeamsForRegistration(int editionId);
+        Task<bool> CanInviteUser(int invitee);
     }
 }

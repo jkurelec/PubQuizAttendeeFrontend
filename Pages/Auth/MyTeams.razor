@@ -25,13 +25,13 @@
 
                     <MudCard Class="mb-3" Elevation="3">
                         <MudCardContent Class="position-relative">
-                                @if (editingTeamId == team.Id)
-                                {
-                                    <MudTextField @ref="teamNameInput" @bind-Value="team.NewName" Immediate="true" OnBlur="() => SaveTeamNameAsync(team)"
-                                    OnKeyDown="@(e => OnTeamNameKeyDown(e, team))" Class="d-inline" Style="width: auto;" />
-                                }
-                                else
-                                {
+                            @if (editingTeamId == team.Id)
+                            {
+                                <MudTextField @ref="teamNameInput" @bind-Value="team.NewName" Immediate="true" OnBlur="() => SaveTeamNameAsync(team)"
+                                OnKeyDown="@(e => OnTeamNameKeyDown(e, team))" Class="d-inline" Style="width: auto;" />
+                            }
+                            else
+                            {
                                 <MudText Typo="Typo.h6" Class="cursor-pointer mb-1" onclick="@(() => NavigateToTeamProfile(team.Id))">
                                     @team.Name
                                     @if (userInfo?.Id == team.OwnerId)
@@ -51,7 +51,7 @@
                                         OnClick="@(() => StartEditingTeamName(team))" />
                                     }
                                 </MudText>
-                                }
+                            }
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
                                 Quiz: @team.Quiz.Name (Rating: @team.Quiz.Rating)
                             </MudText>
@@ -238,7 +238,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        userInfo = await UserInfoService.GetUserInfoAsync();
+        userInfo = await UserInfoService.GetUserInfo();
         teams = await LoadUserTeamsAsync();
         applications = await TeamService.GetApplications();
         invitations = await TeamService.GetInvitations();
@@ -377,11 +377,20 @@
         if (string.IsNullOrWhiteSpace(newTeamName))
             return;
 
-        await TeamService.CreateTeam(newTeamName);
-        showCreateTeam = false;
-        newTeamName = string.Empty;
+        var team = await TeamService.CreateTeam(newTeamName);
 
-        await RefreshTeams();
+        if (team != null)
+        {
+            Snackbar.Add($"Team '{team.Name}' created successfully", Severity.Success);
+            userInfo!.TeamId = team.Id;
+            showCreateTeam = false;
+            newTeamName = string.Empty;
+            await UserInfoService.SetUserInfoAsync(userInfo);
+
+            await RefreshTeams();
+        }
+        else
+            Snackbar.Add($"Failed to create Team '{team?.Name}'", Severity.Error);
     }
 
     private async Task StartEditingTeamName(TeamDetailedDto team)
@@ -422,7 +431,6 @@
         {
             await SaveTeamNameAsync(team);
         }
-
     }
 
     private async Task RefreshTeams()

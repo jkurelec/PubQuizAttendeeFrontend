@@ -14,7 +14,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        UserInfo = await UserInfoService.GetUserInfoAsync();
+        UserInfo = await UserInfoService.GetUserInfo();
     }
 
     private async Task ApplyToTeam()
