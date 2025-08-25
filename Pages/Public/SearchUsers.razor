@@ -70,11 +70,11 @@
         try
         {
             results = await UserService.Search(username, sortBy, descending, limit);
-            Snackbar.Add($"Found {results.Count()} users.", Severity.Success);
+            // Snackbar.Add($"Found {results.Count()} users.", Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to search users: {ex.Message}", Severity.Error);
+            // Snackbar.Add($"Failed to search users: {ex.Message}", Severity.Error);
         }
     }
 
