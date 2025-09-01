@@ -2,7 +2,6 @@
 using PubQuizAttendeeFrontend.Authentication.Misc;
 using PubQuizAttendeeFrontend.Models.Dto.ApplicationDto;
 using PubQuizAttendeeFrontend.Models.Dto.TeamDto;
-using PubQuizAttendeeFrontend.Pages.Public;
 using PubQuizAttendeeFrontend.Services.Interfaces;
 using System.Net.Http.Json;
 

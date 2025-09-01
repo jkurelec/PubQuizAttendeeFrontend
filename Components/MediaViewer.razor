@@ -24,8 +24,11 @@
 }
 
 @code {
-    [Parameter] public byte[]? MediaBytes { get; set; }
-    [Parameter] public QuestionType? MediaType { get; set; }
+    [Parameter]
+    public byte[]? MediaBytes { get; set; }
+
+    [Parameter]
+    public QuestionType? MediaType { get; set; }
 
     private string GetDataUrl(string mimeType, byte[] data)
         => $"data:{mimeType};base64,{Convert.ToBase64String(data)}";

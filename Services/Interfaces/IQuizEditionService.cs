@@ -12,5 +12,6 @@ namespace PubQuizAttendeeFrontend.Services.Interfaces
         Task<(IEnumerable<QuizEditionMinimalDto> Items, int TotalCount)> GetCompletedPage(int page, int pageSize, EditionFilter filter);
         Task<QuizEditionDetailedDto> GetById(int id);
         Task<bool?> HasDetailedQuestions(int editionId);
+        Task<IEnumerable<QuizEditionMinimalDto>> GetByTeamId(int teamId);
     }
 }

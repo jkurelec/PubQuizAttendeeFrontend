@@ -5,7 +5,7 @@
 @inject NavigationManager Navigation
 @inject IQuizEditionService QuizEditionService
 
-<MudPaper Class="pa-6 mx-auto" MaxWidth="600px" Elevation="4">
+<MudPaper Class="pa-6 mx-auto" Elevation="4">
     <MudText Typo="Typo.h4" GutterBottom="true">Welcome to PubQuiz</MudText>
     @if (Name != null)
     {
@@ -15,54 +15,15 @@
 
     <MudTabs @bind-ActivePanelIndex="_activeTabIndex" Rounded="true">
         <MudTabPanel Text="All">
-            <div style="height:600px; overflow-y: auto;" tabindex="0">
-                <Virtualize Context="edition" ItemsProvider="LoadAll" ItemSize="92" OverscanCount="5">
-                    <ItemContent>
-                        <MudCard Class="my-2 pa-3" Style="min-height: 80px; cursor: pointer;"
-                                 @onclick="@(() => NavigateToEdition(edition.Id))">
-                            <MudText Typo="Typo.subtitle1">@edition.Name</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Category: @edition.Category.Name</MudText>
-                            <MudText Typo="Typo.caption">Date: @edition.Time.ToString("f")</MudText>
-                            <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
-                            <MudText Typo="Typo.caption">Teams: @edition.AcceptedTeams / @edition.MaxTeams</MudText>
-                        </MudCard>
-                    </ItemContent>
-                </Virtualize>
-            </div>
+            @RenderEditions(AllEditions, LoadMoreAll, AllHasMore)
         </MudTabPanel>
 
         <MudTabPanel Text="Upcoming">
-            <div style="height:600px; overflow-y: auto;" tabindex="0">
-                <Virtualize Context="edition" ItemsProvider="LoadUpcoming" ItemSize="92" OverscanCount="3">
-                    <ItemContent>
-                        <MudCard Class="my-2 pa-3" Style="min-height: 80px; cursor: pointer;"
-                                 @onclick="@(() => NavigateToEdition(edition.Id))">
-                            <MudText Typo="Typo.subtitle1">@edition.Name</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Category: @edition.Category.Name</MudText>
-                            <MudText Typo="Typo.caption">Date: @edition.Time.ToString("f")</MudText>
-                            <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
-                            <MudText Typo="Typo.caption">Teams: @edition.AcceptedTeams / @edition.MaxTeams</MudText>
-                        </MudCard>
-                    </ItemContent>
-                </Virtualize>
-            </div>
+            @RenderEditions(UpcomingEditions, LoadMoreUpcoming, UpcomingHasMore)
         </MudTabPanel>
 
         <MudTabPanel Text="Past">
-            <div style="height:600px; overflow-y: auto;" tabindex="0">
-                <Virtualize Context="edition" ItemsProvider="LoadCompleted" ItemSize="92" OverscanCount="3">
-                    <ItemContent>
-                        <MudCard Class="my-2 pa-3" Style="min-height: 80px; cursor: pointer;"
-                                 @onclick="@(() => NavigateToEdition(edition.Id))">
-                            <MudText Typo="Typo.subtitle1">@edition.Name</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Category: @edition.Category.Name</MudText>
-                            <MudText Typo="Typo.caption">Date: @edition.Time.ToString("f")</MudText>
-                            <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
-                            <MudText Typo="Typo.caption">Teams: @edition.AcceptedTeams / @edition.MaxTeams</MudText>
-                        </MudCard>
-                    </ItemContent>
-                </Virtualize>
-            </div>
+            @RenderEditions(PastEditions, LoadMorePast, PastHasMore)
         </MudTabPanel>
     </MudTabs>
 </MudPaper>
@@ -70,42 +31,77 @@
 @code {
     private int _activeTabIndex = 0;
     private string? Name;
-    private const int PageSize = 5;
+
+    private List<QuizEditionMinimalDto> AllEditions = new();
+    private List<QuizEditionMinimalDto> UpcomingEditions = new();
+    private List<QuizEditionMinimalDto> PastEditions = new();
+
+    private int AllPage = 1, UpcomingPage = 1, PastPage = 1;
+    private bool AllHasMore = true, UpcomingHasMore = true, PastHasMore = true;
+    private const int PageSize = 12;
 
     protected override async Task OnInitializedAsync()
     {
         var userInfo = await UserInfoService.GetUserInfo();
         Name = userInfo?.Username;
+
+        await LoadMoreAll();
+        await LoadMoreUpcoming();
+        await LoadMorePast();
     }
 
-    private async ValueTask<ItemsProviderResult<QuizEditionMinimalDto>> LoadAll(ItemsProviderRequest request)
+    private RenderFragment RenderEditions(List<QuizEditionMinimalDto> editions, Func<Task> loadMore, bool hasMore) => __builder =>
     {
-        var (items, totalCount) = await QuizEditionService.GetAllPage(
-            page: (request.StartIndex / PageSize) + 1,
-            pageSize: request.Count,
-            filter: EditionFilter.NEWEST);
+        <MudGrid Class="mt-2">
+            @foreach (var edition in editions)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="my-2 pa-3" Style="cursor: pointer; min-height: 140px;"
+                             @onclick="@(() => NavigateToEdition(edition.Id))">
+                        <PublicImage ImageName="@edition.ProfileImage" ResourceType="MediaServerResource.Edition" CssClass="image" />
+                        <MudText Typo="Typo.subtitle1">@edition.Name</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Category: @edition.Category.Name</MudText>
+                        <MudText Typo="Typo.caption">Date: @edition.Time.ToString("f")</MudText>
+                        <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
+                        <MudText Typo="Typo.caption">Teams: @edition.AcceptedTeams / @edition.MaxTeams</MudText>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
 
-        return new ItemsProviderResult<QuizEditionMinimalDto>(items, totalCount);
+        @if (hasMore)
+        {
+            <div class="d-flex justify-center mt-4">
+                <MudButton Variant="Variant.Filled" OnClick="loadMore">Load More</MudButton>
+            </div>
+        }
+    };
+
+    private async Task LoadMoreAll()
+    {
+        var (items, totalCount) = await QuizEditionService.GetAllPage(AllPage, PageSize, EditionFilter.NEWEST);
+        AllEditions.AddRange(items);
+        AllHasMore = AllEditions.Count < totalCount;
+        AllPage++;
+        StateHasChanged();
     }
 
-    private async ValueTask<ItemsProviderResult<QuizEditionMinimalDto>> LoadUpcoming(ItemsProviderRequest request)
+    private async Task LoadMoreUpcoming()
     {
-        var (items, totalCount) = await QuizEditionService.GetUpcomingPage(
-            page: (request.StartIndex / PageSize) + 1,
-            pageSize: request.Count,
-            filter: EditionFilter.NEWEST);
-
-        return new ItemsProviderResult<QuizEditionMinimalDto>(items, totalCount);
+        var (items, totalCount) = await QuizEditionService.GetUpcomingPage(UpcomingPage, PageSize, EditionFilter.NEWEST);
+        UpcomingEditions.AddRange(items);
+        UpcomingHasMore = UpcomingEditions.Count < totalCount;
+        UpcomingPage++;
+        StateHasChanged();
     }
 
-    private async ValueTask<ItemsProviderResult<QuizEditionMinimalDto>> LoadCompleted(ItemsProviderRequest request)
+    private async Task LoadMorePast()
     {
-        var (items, totalCount) = await QuizEditionService.GetCompletedPage(
-            page: (request.StartIndex / PageSize) + 1,
-            pageSize: request.Count,
-            filter: EditionFilter.NEWEST);
-
-        return new ItemsProviderResult<QuizEditionMinimalDto>(items, totalCount);
+        var (items, totalCount) = await QuizEditionService.GetCompletedPage(PastPage, PageSize, EditionFilter.NEWEST);
+        PastEditions.AddRange(items);
+        PastHasMore = PastEditions.Count < totalCount;
+        PastPage++;
+        StateHasChanged();
     }
 
     private void NavigateToEdition(int editionId)

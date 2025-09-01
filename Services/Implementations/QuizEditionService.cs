@@ -1,11 +1,8 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using PubQuizAttendeeFrontend.Enums;
-using PubQuizAttendeeFrontend.Models.Dto.ApplicationDto;
 using PubQuizAttendeeFrontend.Models.Dto.QuizEditionDto;
 using PubQuizAttendeeFrontend.Services.Interfaces;
 using System.Net.Http.Json;
-using static System.Net.WebRequestMethods;
 
 namespace PubQuizAttendeeFrontend.Services.Implementations
 {
@@ -101,6 +98,14 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
             return response.IsSuccessStatusCode
                 ? await response.Content.ReadFromJsonAsync<bool>()
                 : null;
+        }
+
+        public async Task<IEnumerable<QuizEditionMinimalDto>> GetByTeamId(int teamId)
+        {
+            var response = await _httpClient.GetAsync($"{BasePath}team/{teamId}");
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<IEnumerable<QuizEditionMinimalDto>>() ?? new List<QuizEditionMinimalDto>()
+                : new List<QuizEditionMinimalDto>();
         }
     }
 }

@@ -3,6 +3,7 @@
 @inject UserInfoService UserInfoService
 @inject IQuizEditionService QuizEditionService
 @inject IQuizEditionApplicationService QuizEditionApplicationService
+@inject IPrivateMediaService PrivateMediaService
 @inject NavigationManager Navigation
 @inject ITeamService TeamService
 @inject IDialogService DialogService
@@ -15,9 +16,9 @@
 }
 else
 {
-    <MudGrid Class="pa-6 mx-auto" MaxWidth="1000px" Gutter="Size.Small">
+    <MudGrid Class="pa-6 mx-auto">
         <MudItem xs="12" md="8">
-            <MudPaper Class="pa-6 mx-auto" MaxWidth="700px" Elevation="4">
+            <MudPaper Class="pa-6 mx-auto" Elevation="4">
                 <MudText Typo="Typo.h4" GutterBottom="true">@editionDto.Name</MudText>
                 <MudText Typo="Typo.body1">@editionDto.Category?.Name</MudText>
                 <MudText Typo="Typo.body1">Rating: @editionDto.Rating</MudText>
@@ -89,7 +90,7 @@ else
                 </MudCard>
             </MudPaper>
 
-            <MudPaper id="map-section" Class="pa-6 mt-6 mx-auto" MaxWidth="700px" Elevation="4">
+            <MudPaper id="map-section" Class="pa-6 mt-6 mx-auto" Elevation="4">
                 @if (editionDto.Location != null)
                 {
                     var fullAddress = $"{editionDto.Location.Address}, {editionDto.Location.City}, {editionDto.Location.Country}";
@@ -110,6 +111,152 @@ else
                     </MudCard>
                 }
             </MudPaper>
+
+            @if (editionDto is PastQuizEditionDetailedDto pastEdition && editionDto.Time < DateTime.UtcNow)
+            {
+                <MudPaper Class="pa-4 pt-4 mt-4" Elevation="4">
+
+                    <MudStack Class="pa-6" Row Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Results</MudText>
+                        <MudText Typo="Typo.h6">Points</MudText>
+                    </MudStack>
+
+                    <MudStack Spacing="2" Class="mt-2">
+                        @foreach (var result in pastEdition.Results.OrderBy(r => r.Rank))
+                        {
+                            var isUserTeam = result.Rounds.Any(round => round.QuizSegmentResults.Any());
+
+                            <MudPaper Class="pa-6" Elevation="3" Style="@(isUserTeam ? "background-color: #e3f2fd;" : "")">
+                                <MudStack Row Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText onclick="@(() => NavigateToTeam(result.Team.Id))"
+                                    Typo="Typo.body1" Class="font-medium" Style="cursor: pointer;">
+                                        @result.Rank. @result.Team.Name
+                                    </MudText>
+
+                                    <MudText Typo="Typo.body1" Class="font-medium">
+                                        @result.TotalPoints/@editionDto.TotalPoints
+                                    </MudText>
+                                </MudStack>
+
+                                @if (isUserTeam)
+                                {
+                                    <MudExpansionPanel Text="Rounds">
+                                        <MudStack Spacing="2">
+                                            @for (int i = 0; i < result.Rounds.Count(); i++)
+                                            {
+                                                var round = result.Rounds.ToList()[i];
+                                                <MudStack Class="pa-6" Row Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                    <MudText Typo="Typo.h6">Round @(((PastQuizEditionDetailedDto)editionDto).Rounds.Rounds.FirstOrDefault(x => x.Id == round.RoundId)?.Number)</MudText>
+                                                    <MudText Typo="Typo.h6">@round.Points / @(((PastQuizEditionDetailedDto)editionDto).Rounds.Rounds.FirstOrDefault(x => x.Id == round.RoundId)?.Points)</MudText>
+                                                </MudStack>
+                                                <MudExpansionPanel Text="Answers">
+                                                    <MudStack Spacing="2">
+                                                        @foreach (var answer in round.QuizSegmentResults.SelectMany(s => s.QuizAnswers))
+                                                        {
+                                                            var question = ((PastQuizEditionDetailedDto)editionDto).Rounds.Rounds.SelectMany(x => x.QuizSegments).SelectMany(x => x.Questions).FirstOrDefault(x => x.Id == answer.QuestionId);
+                                                            <MudStack Class="pa-6" Row Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                                <MudText Typo="Typo.caption">Question @answer.Number</MudText>
+                                                                <MudText Typo="Typo.caption">(@question?.Answer) @answer.Answer  @answer.Points / @(question?.Points + question?.BonusPoints)</MudText>
+                                                            </MudStack>
+                                                        }
+                                                    </MudStack>
+                                                </MudExpansionPanel>
+                                            }
+                                        </MudStack>
+                                    </MudExpansionPanel>
+                                }
+                            </MudPaper>
+                        }
+                    </MudStack>
+                </MudPaper>
+
+                @if (pastEdition.Rounds.Rounds.Any())
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="fill-height pa-4" Style="height: 100%; width: 100%;">
+                        @if (CurrentSlides?.Count > 0)
+                        {
+                            <MudPaper Class="pa-4" Style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                                @if (CurrentSlide != null)
+                                {
+                                    <div>
+                                        @if (CurrentSlide.Type == QuestionType.REGULAR)
+                                        {
+                                            <h5>@CurrentSlide.Number @CurrentSlide.Question</h5>
+                                        }
+                                        else if (CurrentSlide.Type == QuestionType.MULTIPLE_CHOICE)
+                                        {
+                                            var questionText = CurrentSlide.Question.TrimEnd('|');
+                                            var allOptions = Regex.Split(questionText, @"(?=[a-d]\))")
+                                            .Select(o => o.Trim())
+                                            .Where(o => !string.IsNullOrWhiteSpace(o))
+                                            .ToList();
+
+                                            var options = allOptions.Skip(1)
+                                            .Select(o => o.TrimEnd('|').Trim())
+                                            .ToList();
+
+                                            var correctAnswers = CurrentSlide.Answer?.Split("||") ?? Array.Empty<string>();
+
+                                            <h5 class="pb-4">@CurrentSlide.Number. @allOptions[0]</h5>
+
+                                            <MudStack Spacing="0">
+                                                @foreach (var option in options)
+                                                {
+                                                    var letter = Regex.Match(option, @"^[a-d]\)").Value;
+                                                    var text = option.Substring(letter.Length).Trim();
+
+                                                    var isCorrect = correctAnswers.Contains(letter);
+
+                                                    <span style="@(isCorrect ? "color:red;font-weight:bold;" : "")">
+                                                        <h5>@letter @text</h5>
+                                                    </span>
+
+                                                    <br />
+                                                }
+                                            </MudStack>
+                                        }
+                                        else if (CurrentSlide.Type == QuestionType.IMAGE && !string.IsNullOrEmpty(CurrentSlide.MediaUrl))
+                                        {
+                                            <div class="d-flex flex-column">
+
+                                                <div>
+                                                    <h5>@CurrentSlide.Number. @CurrentSlide.Question</h5>
+                                                </div>
+                                                <div>
+                                                    <MediaViewer MediaBytes="CurrentSlide.Media" MediaType="CurrentSlide.Type" />
+                                                </div>
+                                            </div>
+                                        }
+                                        else if (CurrentSlide.Type == QuestionType.VIDEO && !string.IsNullOrEmpty(CurrentSlide.MediaUrl))
+                                        {
+                                            <div class="d-flex flex-column">
+                                                <h5>@CurrentSlide.Number. @CurrentSlide.Question</h5>
+                                                <MediaViewer MediaBytes="CurrentSlide.Media" MediaType="CurrentSlide.Type" />
+                                            </div>
+                                        }
+                                        else if (CurrentSlide.Type == QuestionType.AUDIO && !string.IsNullOrEmpty(CurrentSlide.MediaUrl))
+                                        {
+                                            <div class="d-flex flex-column">
+                                                <h5>@CurrentSlide.Number. @CurrentSlide.Question</h5>
+                                                <MediaViewer MediaBytes="CurrentSlide.Media" MediaType="CurrentSlide.Type" />
+                                            </div>
+                                        }
+                                            <h5 style="color:red;font-weight:bold;">@CurrentSlide.Answer</h5>
+                                    </div>
+                                    <MudStack Row>
+                                        <MudButton>
+                                            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Disabled="@(CurrentSlideIndex == 0)" OnClick="() => { CurrentSlideIndex--; CurrentSlide = CurrentSlides[CurrentSlideIndex]; }" />
+                                        </MudButton>
+                                        <MudButton>
+                                            <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Disabled="@(CurrentSlideIndex == CurrentSlides.Count - 1)" OnClick="() => { CurrentSlideIndex++; CurrentSlide = CurrentSlides[CurrentSlideIndex]; }" />
+                                        </MudButton>
+                                    </MudStack>
+                                }
+                            </MudPaper>
+                        }
+                    </MudStack>
+                }
+            }
         </MudItem>
 
         <MudItem xs="12" md="4">
@@ -182,11 +329,16 @@ else
     private bool showTeams = false;
     private List<AcceptedQuizEditionApplicationDto> acceptedTeams = new();
     private UserInfo? userInfo;
+    private int questionCounter = 0;
+    private IEnumerable<QuizRoundDto>? RoundsWithMedia;
+    private List<QuizQuestionDtoWithMediaLoaded>? CurrentSlides;
+    private QuizQuestionDtoWithMediaLoaded? CurrentSlide;
+    private int CurrentSlideIndex = 0;
 
     protected override async Task OnInitializedAsync()
     {
-        editionDto = await QuizEditionService.GetById(Id);
         userInfo = await UserInfoService.GetUserInfo();
+        editionDto = await QuizEditionService.GetById(Id);
 
         if (userInfo != null)
         {
@@ -195,6 +347,91 @@ else
             if (!canApply)
                 await CheckIfUserCanWithdraw(editionDto);
         }
+
+        if (editionDto is PastQuizEditionDetailedDto edition)
+        {
+            var usersResult = edition.Results
+                .FirstOrDefault(r => r.Rounds.Any(round => round.QuizSegmentResults.Any()));
+
+            if (usersResult != null)
+            {
+                int i = 1;
+                foreach (var round in usersResult.Rounds)
+                {
+                    foreach (var segment in round.QuizSegmentResults)
+                    {
+                        foreach (var answer in segment.QuizAnswers)
+                        {
+                            answer.Number = i;
+                            i++;
+                        }
+                    }
+                }
+            }
+
+            if (edition.Rounds.Rounds.Any())
+            {
+                int questionNumber = 1;
+                RoundsWithMedia = edition.Rounds.Rounds?
+                    .OrderBy(x => x.Number)
+                    .Select(r => new QuizRoundDto
+                        {
+                            Id = r.Id,
+                            Number = r.Number,
+                            EditionId = r.EditionId,
+                            Points = r.Points,
+                            QuizSegments = r.QuizSegments
+                                    .OrderBy(s => s.Number)
+                                    .Select(s => new QuizSegmentDto
+                                    {
+                                        Id = s.Id,
+                                        RoundId = s.RoundId,
+                                        Number = s.Number,
+                                        Type = s.Type,
+                                        BonusPoints = s.BonusPoints,
+                                        Questions = s.Questions
+                                            .OrderBy(q => q.Number)
+                                            .Select(q =>
+                                            {
+                                                var qWithMedia = new QuizQuestionDtoWithMediaLoaded
+                                                {
+                                                    Id = q.Id,
+                                                    SegmentId = q.SegmentId,
+                                                    Type = q.Type,
+                                                    Question = q.Question,
+                                                    Answer = q.Answer,
+                                                    Points = q.Points,
+                                                    BonusPoints = q.BonusPoints,
+                                                    MediaUrl = q.MediaUrl,
+                                                    Number = questionNumber,
+                                                    Rating = q.Rating,
+                                                    Media = null
+                                                };
+                                                questionNumber++;
+                                                _ = LoadMediaAsync(qWithMedia);
+
+                                                return qWithMedia;
+                                            })
+                                            .ToList()
+                                    })
+                                    .ToList()
+                        })
+                    .ToList();
+
+                CurrentSlides = RoundsWithMedia
+                    .OrderBy(x => x.Number)
+                    .SelectMany(x => x.QuizSegments)
+                    .OrderBy(s => s.Number)
+                    .SelectMany(s => s.Questions.OrderBy(q => q.Number))
+                    .OfType<QuizQuestionDtoWithMediaLoaded>()
+                    .OrderBy(q => q.Number)
+                    .ToList();
+
+                CurrentSlideIndex = 0;
+                CurrentSlide = CurrentSlides.FirstOrDefault();
+            }
+        }
+
     }
 
     private async Task CheckIfUserCanApply(QuizEditionDetailedDto? editionDto)
@@ -294,4 +531,31 @@ else
             StateHasChanged();
         }
     }
+
+    private void NavigateToTeam(int id)
+    {
+        Navigation.NavigateTo($"/team/{id}");
+    }
+
+    private async Task LoadMediaAsync(QuizQuestionDtoWithMediaLoaded question)
+    {
+        question.Media = await GetMedia(question);
+        StateHasChanged();
+    }
+
+    protected async Task<byte[]?> GetMedia(QuizQuestionDto question)
+    {
+        if (RequiresMedia(question.Type) && question.MediaUrl is not null)
+        {
+            var parts = question.MediaUrl.Split('/');
+            if (parts.Length == 3 && int.TryParse(parts[1], out int editionId))
+            {
+                return await PrivateMediaService.GetMediaFile(parts[0], editionId, parts[2]);
+            }
+        }
+        return null;
+    }
+
+    private bool RequiresMedia(QuestionType? type) =>
+        type == QuestionType.IMAGE || type == QuestionType.AUDIO || type == QuestionType.VIDEO;
 }

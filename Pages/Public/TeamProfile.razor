@@ -2,19 +2,83 @@
 
 @inject UserInfoService UserInfoService
 @inject ITeamService TeamService
+@inject IQuizEditionService EditionService
 
-<h3>PlayerProfile</h3>
-<MudButton OnClick="ApplyToTeam">Apply</MudButton>
+@if (Team == null){
+    <MudProgressCircular>Loading</MudProgressCircular>
+}
+else
+{
+    <MudPaper Class="pa-6 mx-auto mt-4" Elevation="4">
+        <MudCard Class="mb-6 pa-4">
+            <MudGrid>
+                <MudItem xs="2">
+                    <MudAvatar Size="Size.Large">
+                        <MudImage Src="@($"{MediaServerPaths.GetPublicPath(MediaServerResource.Team)}{Team?.ProfileImage}")"
+                                  Alt="@($"Profile image of {Team.Name}")"
+                                  Style="width: 100%; height: 100%; object-fit: cover;" />
+                    </MudAvatar>
+                </MudItem>
+
+                <MudItem xs="8" Class="d-flex flex-column justify-center">
+                    <MudText Typo="Typo.h5">@Team.Name</MudText>
+                </MudItem>
+
+                <MudItem xs="2" Class="d-flex justify-end align-center">
+                    <MudButton StartIcon="@Icons.Material.Filled.PersonAdd"
+                               Color="Color.Primary"
+                               Disabled="!CanInvite"
+                               OnClick="ApplyToTeam">
+                        Apply To Team
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCard>
+
+        @if (quizEditions?.Any() == true)
+        {
+            <MudCard Class="mb-6 pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Attended Editions</MudText>
+                <MudList Dense="true" T="QuizEditionResultForUserDto">
+                    @foreach (var edition in quizEditions)
+                    {
+                        <MudListItem Class="d-flex align-items-center justify-content-between">
+                            <MudStack Row>
+                                <MudAvatar Size="Size.Medium" Class="mr-3">
+                                    <MudImage Src="@($"{MediaServerPaths.GetPublicPath(MediaServerResource.Edition)}{edition.ProfileImage}")"
+                                              Alt="@edition.ProfileImage" Style="width: 100%; height: 100%; object-fit: cover;" />
+                                </MudAvatar>
+                                <MudStack Spacing="0" Class="pb-4">
+                                    <MudText Typo="Typo.h6">@edition.Name</MudText>
+                                    <MudText Typo="Typo.caption">@edition.Category.Name</MudText>
+                                    <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
+                                    <MudText Typo="Typo.caption">@edition.Time.ToString("g")</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudCard>
+        }
+    </MudPaper>
+}
 
 @code {
     [Parameter]
     public int Id { get; set; }
 
     public UserInfo? UserInfo;
+    public TeamDetailedDto? Team;
+    public IEnumerable<QuizEditionMinimalDto>? quizEditions;
+    public bool CanInvite = false;
 
     protected override async Task OnInitializedAsync()
     {
         UserInfo = await UserInfoService.GetUserInfo();
+        Team = await TeamService.GetTeamById(Id);
+        quizEditions = await EditionService.GetByTeamId(Id);
+
+        CanInvite = Team!.TeamMembers.Any(x => x.Id == UserInfo?.Id) ? false : true;
     }
 
     private async Task ApplyToTeam()

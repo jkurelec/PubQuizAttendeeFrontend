@@ -15,7 +15,7 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
         {
             try
             {
-                var mediaUrl = $"https://localhost:7246/question/{mediaType}/{editionId}/{fileName}"; // assuming 7071 is MediaServer
+                var mediaUrl = $"https://localhost:7246/question/{mediaType}/{editionId}/{fileName}";
                 var response = await _http.GetAsync(mediaUrl);
 
                 if (!response.IsSuccessStatusCode)
