@@ -30,15 +30,6 @@ else
                     </MudText>
                     <MudText Typo="Typo.body2">Rating: @User.Rating</MudText>
                 </MudItem>
-
-                <MudItem xs="2" Class="d-flex justify-end align-center">
-                    <MudButton StartIcon="@Icons.Material.Filled.PersonAdd"
-                               Color="Color.Primary"
-                               Disabled="!CanInvite"
-                               OnClick="InvitePlayer">
-                        Invite To Team
-                    </MudButton>
-                </MudItem>
             </MudGrid>
         </MudCard>
 
@@ -180,9 +171,6 @@ else
 }
 
 @code {
-    [Parameter]
-    public int Id { get; set; }
-
     private UserInfo? UserInfo;
     private OrganizationMinimalDto? org;
     private List<QuizMinimalDto> avaliableQuizzes = new List<QuizMinimalDto>();
@@ -209,11 +197,8 @@ else
     protected override async Task OnInitializedAsync()
     {
         UserInfo = await UserInfoService.GetUserInfo();
-        User = await UserService.GetDetailedById(Id);
+        User = await UserService.GetDetailedById(UserInfo.Id.Value);
         await LoadRatingHistory();
-
-        if (UserInfo?.TeamId != null)
-            CanInvite = await TeamService.CanInviteUser(Id);
     }
 
     private async Task OnPeriodChanged(TimePeriod newPeriod)
@@ -224,7 +209,7 @@ else
 
     private async Task LoadRatingHistory()
     {
-        RatingHistory = await UserService.GetRatingHistories(Id, RatingPeriod);
+        RatingHistory = await UserService.GetRatingHistories(UserInfo.Id.Value, RatingPeriod);
 
         if (RatingHistory != null && RatingHistory.Any())
         {
@@ -249,21 +234,6 @@ else
         }
 
         StateHasChanged();
-    }
-
-    private async Task InvitePlayer()
-    {
-        if (UserInfo?.TeamId != null)
-            await TeamService.InviteUser(
-                new()
-                    {
-                        UserId = Id,
-                        TeamId = (int)UserInfo!.TeamId!,
-                        RegisterTeam = false
-                    }
-            );
-
-        CanInvite = await TeamService.CanInviteUser(Id);
     }
 
     private string GetRoleName(int roleInt)

@@ -1,9 +1,9 @@
 ﻿@page "/"
-@using PubQuizAttendeeFrontend.Models.Dto.QuizEditionDto
-@using PubQuizAttendeeFrontend.Enums
+
 @inject UserInfoService UserInfoService
 @inject NavigationManager Navigation
 @inject IQuizEditionService QuizEditionService
+@inject IAuthService AuthService
 
 <MudPaper Class="pa-6 mx-auto" Elevation="4">
     <MudText Typo="Typo.h4" GutterBottom="true">Welcome to PubQuiz</MudText>
@@ -42,7 +42,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await AuthService.TryRefreshTokenAsync();
         var userInfo = await UserInfoService.GetUserInfo();
+
+        if (userInfo != null)
         Name = userInfo?.Username;
 
         await LoadMoreAll();

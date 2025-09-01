@@ -87,7 +87,11 @@ namespace PubQuizAttendeeFrontend.Authentication.Implementations
                 if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
                     return false;
 
-                _tokenStorage.SetAccessToken(result.AccessToken);
+                if (_authenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+                {
+                    await customAuthProvider.NotifyUserAuthentication(result.AccessToken);
+                }
+
                 return true;
             }
             catch
