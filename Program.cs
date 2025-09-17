@@ -37,6 +37,7 @@ builder.Services.AddScoped<IUpcomingQuizQuestionService, UpcomingQuizQuestionSer
 builder.Services.AddScoped<IPrivateMediaService, PrivateMediaService>();
 builder.Services.AddScoped<IQuizAnswerService, QuizAnswerService>();
 builder.Services.AddScoped<IEloCalculatorService, EloCalculatorService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 
 
 builder.Services.AddTransient<RetryingTokenHandler>();

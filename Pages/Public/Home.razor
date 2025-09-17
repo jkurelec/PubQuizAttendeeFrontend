@@ -4,6 +4,8 @@
 @inject NavigationManager Navigation
 @inject IQuizEditionService QuizEditionService
 @inject IAuthService AuthService
+@inject IRecommendationService RecommendationService
+@inject IJSRuntime JS
 
 <MudPaper Class="pa-6 mx-auto" Elevation="4">
     <MudText Typo="Typo.h4" GutterBottom="true">Welcome to PubQuiz</MudText>
@@ -28,10 +30,53 @@
     </MudTabs>
 </MudPaper>
 
+
+@if (ShowOverlay)
+{
+    <div class="recommendation-overlay">
+        <div class="recommendation-rating-card" style="@CardStyle">
+            <div class="fade-container" style="opacity:@(CardOpacity.ToString("0.0"))">
+                <MudText Typo="Typo.caption" >Please provide feedback for @FeedbackRequest?.EditionName</MudText>
+                <MudText Typo="Typo.h3">@CurrentLabel</MudText>
+
+                @if (CurrentType == "Stars")
+                {
+                    <div class="recommendation-stars-row">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            var hoverValue = i;
+                            <span class="recommendation-star"
+                            style=@($"color: {GetStarColor(hoverValue)}; font-size:3rem")
+                            @onmouseover="() => HoverValue = hoverValue"
+                            @onmouseout="() => HoverValue = 0"
+                            @onclick="() => SelectStar(hoverValue)">
+                                &#9733;
+                            </span>
+                        }
+                    </div>
+                }
+                else if (CurrentType == "Options")
+                {
+                    <div class="recommendation-options-column">
+                        @foreach (var opt in CurrentOptions)
+                        {
+                            <div class="recommendation-option-btn @(SelectedValue == opt.Value ? "selected" : "")"
+                            @onclick="() => SelectOption(opt.Value)">
+                                @opt.Label
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
 @code {
     private int _activeTabIndex = 0;
     private string? Name;
-
+    private UserInfo? userInfo;
     private List<QuizEditionMinimalDto> AllEditions = new();
     private List<QuizEditionMinimalDto> UpcomingEditions = new();
     private List<QuizEditionMinimalDto> PastEditions = new();
@@ -40,17 +85,44 @@
     private bool AllHasMore = true, UpcomingHasMore = true, PastHasMore = true;
     private const int PageSize = 12;
 
+    public bool ShowOverlay = false;
+    public int EditionId { get; set; }
+    public int UserId { get; set; }
+    private Dictionary<string, int> Ratings = new();
+    private RatingStep CurrentStep => Steps[StepIndex];
+    private string CurrentLabel => CurrentStep.Label;
+    private string CurrentType => CurrentStep.Type;
+    private List<RatingOption> CurrentOptions => CurrentStep.Options;
+    private int StepIndex = 0;
+    private int SelectedValue = 0;
+    private double CardOpacity = 1;
+    private string CardStyle => "transition: opacity 0.3s ease;";
+    private int HoverValue = 0;
+    private EditionFeedbackRequestDto? FeedbackRequest = new();
+    private GeolocationResult geolocationResult = new();
+
     protected override async Task OnInitializedAsync()
     {
         await AuthService.TryRefreshTokenAsync();
-        var userInfo = await UserInfoService.GetUserInfo();
-
-        if (userInfo != null)
-        Name = userInfo?.Username;
+        userInfo = await UserInfoService.GetUserInfo();
 
         await LoadMoreAll();
         await LoadMoreUpcoming();
         await LoadMorePast();
+
+        if (userInfo != null)
+        {
+            Name = userInfo?.Username;
+            // FeedbackRequest = await RecommendationService.GetEditionInfoForFeedback();
+
+            // if (FeedbackRequest != null)
+            // {
+            //     ShowOverlay = true;
+            //     Steps[1].Label = $"Host Rating for {FeedbackRequest.HostUsername}";
+            // }
+        }
+
+        // var geolocationResult = await JS.InvokeAsync<GeolocationResult>("getLocation");
     }
 
     private RenderFragment RenderEditions(List<QuizEditionMinimalDto> editions, Func<Task> loadMore, bool hasMore) => __builder =>
@@ -60,7 +132,7 @@
             {
                 <MudItem xs="12" sm="6" md="4" lg="3">
                     <MudCard Class="my-2 pa-3" Style="cursor: pointer; min-height: 140px;"
-                             @onclick="@(() => NavigateToEdition(edition.Id))">
+                    @onclick="@(() => NavigateToEdition(edition.Id))">
                         <PublicImage ImageName="@edition.ProfileImage" ResourceType="MediaServerResource.Edition" CssClass="image" />
                         <MudText Typo="Typo.subtitle1">@edition.Name</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Category: @edition.Category.Name</MudText>
@@ -110,5 +182,124 @@
     private void NavigateToEdition(int editionId)
     {
         Navigation.NavigateTo($"/edition/{editionId}");
+    }
+
+    private List<RatingStep> Steps = new()
+    {
+        new RatingStep { Label="General Rating", Type="Stars", Key="general" },
+        new RatingStep { Label="Host Rating", Type="Stars", Key="host" },
+        new RatingStep
+        {
+            Label="Difficulty",
+            Type="Options",
+            Key="difficulty",
+            Options = new List<RatingOption>
+            {
+                new() { Label="Too Easy", Value=-1 },
+                new() { Label="Just Right", Value=0 },
+                new() { Label="Too Hard", Value=1 }
+            }
+        },
+        new RatingStep
+        {
+            Label="Duration",
+            Type="Options",
+            Key="duration",
+            Options = new List<RatingOption>
+            {
+                new() { Label="Too Short", Value=-1 },
+                new() { Label="Just Right", Value=0 },
+                new() { Label="Too Long", Value=1 }
+            }
+        },
+        new RatingStep
+        {
+            Label="Number of People/Teams",
+            Type="Options",
+            Key="team_count",
+            Options = new List<RatingOption>
+            {
+                new() { Label="Too Few", Value=-1 },
+                new() { Label="Just Right", Value=0 },
+                new() { Label="Too Many", Value=1 }
+            }
+        }
+    };
+
+    private async void SelectStar(int value)
+    {
+        SelectedValue = value;
+        StateHasChanged();
+        await Task.Delay(100);
+        await MoveNext();
+    }
+
+    private async void SelectOption(int value)
+    {
+        SelectedValue = value;
+        StateHasChanged();
+        await Task.Delay(100);
+        await MoveNext();
+    }
+
+    private async Task MoveNext()
+    {
+        Ratings[CurrentStep.Key] = SelectedValue;
+        SelectedValue = 0;
+
+        CardOpacity = 0;
+        StateHasChanged();
+
+        StepIndex++;
+        if (StepIndex >= Steps.Count)
+        {
+            var userFeedback = new UserFeedbackDto
+            {
+                EditionId = FeedbackRequest!.EditionId,
+                UserId = userInfo!.Id!.Value,
+                GeneralRating = NormalizeRating(Ratings.GetValueOrDefault("general", 0)),
+                HostRating = NormalizeRating(Ratings.GetValueOrDefault("host", 0)),
+                DifficultyRating = Ratings.GetValueOrDefault("difficulty", 0),
+                DurationRating = Ratings.GetValueOrDefault("duration", 0),
+                NumberOfPeopleRating = Ratings.GetValueOrDefault("team_count", 0)
+            };
+
+            _ = RecommendationService.SendFeedback(userFeedback);
+
+            ShowOverlay = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        else
+        {
+            CardOpacity = 1;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private class RatingStep
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Type { get; set; } = "Stars";
+        public string Key { get; set; } = string.Empty;
+        public List<RatingOption> Options { get; set; } = new();
+    }
+
+    private class RatingOption
+    {
+        public string Label { get; set; } = string.Empty;
+        public int Value { get; set; }
+    }
+
+    private string GetStarColor(int i)
+    {
+        return i <= (HoverValue > 0 ? HoverValue : SelectedValue) ? "orange" : "gray";
+    }
+
+
+    float NormalizeRating(int rating)
+    {
+        return rating >= 1 && rating <= 5
+            ? (float)((rating - 1) / 4.0)
+            : 0;
     }
 }

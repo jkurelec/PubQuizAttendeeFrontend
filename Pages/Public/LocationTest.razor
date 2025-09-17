@@ -1,0 +1,37 @@
+﻿@page "/location-test"
+@inject IJSRuntime JS
+
+<h3>Location Test</h3>
+
+<p>@status</p>
+<p>Lat: @latitude, Lng: @longitude</p>
+
+<button @onclick="GetLocation">Get Location</button>
+
+@code {
+    private string status = "Click to request location";
+    private double latitude;
+    private double longitude;
+
+    private async Task GetLocation()
+    {
+        try
+        {
+            var pos = await JS.InvokeAsync<GeolocationResult>("getLocation");
+            latitude = pos.Latitude;
+            longitude = pos.Longitude;
+            status = "Location received!";
+        }
+        catch (Exception ex)
+        {
+            status = $"Error: {ex.Message}";
+        }
+    }
+
+    public class GeolocationResult
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Accuracy { get; set; }
+    }
+}
