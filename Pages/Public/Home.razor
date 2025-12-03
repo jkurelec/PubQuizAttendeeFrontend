@@ -139,6 +139,10 @@
                         <MudText Typo="Typo.caption">Date: @edition.Time.ToString("f")</MudText>
                         <MudText Typo="Typo.caption">Rating: @edition.Rating</MudText>
                         <MudText Typo="Typo.caption">Teams: @edition.AcceptedTeams / @edition.MaxTeams</MudText>
+                        @if(edition.Match != null)
+                        {
+                            <MudText Typo="Typo.caption">Match: @edition.Match</MudText>
+                        }
                     </MudCard>
                 </MudItem>
             }
@@ -154,11 +158,26 @@
 
     private async Task LoadMoreAll()
     {
-        var (items, totalCount) = await QuizEditionService.GetAllPage(AllPage, PageSize, EditionFilter.NEWEST);
-        AllEditions.AddRange(items);
-        AllHasMore = AllEditions.Count < totalCount;
-        AllPage++;
-        StateHasChanged();
+        var recommendations = new List<QuizEditionMinimalDto>();
+
+        if (userInfo != null)
+            recommendations = (await QuizEditionService.GetRecommended()).ToList();
+
+        if (recommendations.Count() != 0)
+        {
+            AllEditions.AddRange(recommendations);
+            AllHasMore = false;
+            AllPage++;
+            StateHasChanged();
+        }
+        else
+        {
+            var (items, totalCount) = await QuizEditionService.GetAllPage(AllPage, PageSize, EditionFilter.NEWEST);
+            AllEditions.AddRange(items);
+            AllHasMore = AllEditions.Count < totalCount;
+            AllPage++;
+            StateHasChanged();
+        }
     }
 
     private async Task LoadMoreUpcoming()
@@ -188,42 +207,9 @@
     {
         new RatingStep { Label="General Rating", Type="Stars", Key="general" },
         new RatingStep { Label="Host Rating", Type="Stars", Key="host" },
-        new RatingStep
-        {
-            Label="Difficulty",
-            Type="Options",
-            Key="difficulty",
-            Options = new List<RatingOption>
-            {
-                new() { Label="Too Easy", Value=-1 },
-                new() { Label="Just Right", Value=0 },
-                new() { Label="Too Hard", Value=1 }
-            }
-        },
-        new RatingStep
-        {
-            Label="Duration",
-            Type="Options",
-            Key="duration",
-            Options = new List<RatingOption>
-            {
-                new() { Label="Too Short", Value=-1 },
-                new() { Label="Just Right", Value=0 },
-                new() { Label="Too Long", Value=1 }
-            }
-        },
-        new RatingStep
-        {
-            Label="Number of People/Teams",
-            Type="Options",
-            Key="team_count",
-            Options = new List<RatingOption>
-            {
-                new() { Label="Too Few", Value=-1 },
-                new() { Label="Just Right", Value=0 },
-                new() { Label="Too Many", Value=1 }
-            }
-        }
+        new RatingStep { Label="Difficulty Rating", Type="Stars", Key="difficulty" },
+        new RatingStep { Label="Duration Rating", Type="Stars", Key="duration" },
+        new RatingStep { Label="Number of players on the quiz Rating", Type="Stars", Key="team_count" }
     };
 
     private async void SelectStar(int value)
@@ -259,9 +245,9 @@
                 UserId = userInfo!.Id!.Value,
                 GeneralRating = NormalizeRating(Ratings.GetValueOrDefault("general", 0)),
                 HostRating = NormalizeRating(Ratings.GetValueOrDefault("host", 0)),
-                DifficultyRating = Ratings.GetValueOrDefault("difficulty", 0),
-                DurationRating = Ratings.GetValueOrDefault("duration", 0),
-                NumberOfPeopleRating = Ratings.GetValueOrDefault("team_count", 0)
+                DifficultyRating = NormalizeRating(Ratings.GetValueOrDefault("difficulty", 0)),
+                DurationRating = NormalizeRating(Ratings.GetValueOrDefault("duration", 0)),
+                NumberOfPeopleRating = NormalizeRating(Ratings.GetValueOrDefault("team_count", 0))
             };
 
             _ = RecommendationService.SendFeedback(userFeedback);

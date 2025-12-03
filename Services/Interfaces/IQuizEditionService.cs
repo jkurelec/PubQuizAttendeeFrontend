@@ -5,6 +5,7 @@ namespace PubQuizAttendeeFrontend.Services.Interfaces
 {
     public interface IQuizEditionService
     {
+        Task<IEnumerable<QuizEditionMinimalDto>> GetRecommended();
         Task<(IEnumerable<QuizEditionMinimalDto> Items, int TotalCount)> GetAllPage(int page, int pageSize, EditionFilter filter);
 
         Task<(IEnumerable<QuizEditionMinimalDto> Items, int TotalCount)> GetUpcomingPage(int page, int pageSize, EditionFilter filter);

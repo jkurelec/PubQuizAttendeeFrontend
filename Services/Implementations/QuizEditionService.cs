@@ -16,6 +16,14 @@ namespace PubQuizAttendeeFrontend.Services.Implementations
             _httpClient = httpClient;
         }
 
+        public async Task<IEnumerable<QuizEditionMinimalDto>> GetRecommended()
+        {
+            var response = await _httpClient.GetAsync($"{BasePath}recommended");
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<IEnumerable<QuizEditionMinimalDto>>() ?? new List<QuizEditionMinimalDto>()
+                : new List<QuizEditionMinimalDto>();
+        }
+
         public async Task<(IEnumerable<QuizEditionMinimalDto> Items, int TotalCount)> GetAllPage(int page, int pageSize, EditionFilter filter)
         {
             var url = $"{BasePath}paged/all?page={page}&pageSize={pageSize}&filter={filter}";

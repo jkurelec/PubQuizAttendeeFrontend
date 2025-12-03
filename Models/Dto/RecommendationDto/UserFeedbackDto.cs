@@ -6,8 +6,8 @@
         public int EditionId { get; set; }
         public float GeneralRating { get; set; }
         public float HostRating { get; set; }
-        public int DifficultyRating { get; set; }
-        public int DurationRating { get; set; }
-        public int NumberOfPeopleRating { get; set; }
+        public float DifficultyRating { get; set; }
+        public float DurationRating { get; set; }
+        public float NumberOfPeopleRating { get; set; }
     }
 }
